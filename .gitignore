@@ -1,0 +1,12 @@
+.git
+nbproject
+.kdev4
+.idea
+.kate-swp
+~
+.directory
+composer.lock
+/vendor/
+/logs/
+/app/Configs/config.php
+/app/Configs/database.php

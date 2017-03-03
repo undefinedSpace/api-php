@@ -1,0 +1,27 @@
+{
+  "authors" : [
+    {
+      "name": "Evil Freelancer",
+      "email": "paul@drteam.rocks",
+      "role": "Developer"
+    },
+    {
+      "name": "B_o_m_b_o",
+      "email": "odmo8ombo@gmail.com",
+      "role": "Developer"
+    },
+    {
+      "email": "h4ckth1ssh1t@gmail.com",
+      "name": "Defalt Hackinson",
+      "role": "Developer"
+    }
+  ],
+  "description": "Monitoring (aka Git) of the file system.",
+  "license": "MIT",
+  "minimum-stability": "stable",
+  "name": "undefinedSpace/api-php",
+  "require": {
+    "slim/slim": "^3.0",
+    "illuminate/database": "*"
+  }
+}

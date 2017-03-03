@@ -1,0 +1,18 @@
+[
+  {
+    "type": "file",
+    "event": "IS_CREATED",
+    "name": "asd",
+    "inode": "1835347",
+    "time": "1487443087",
+    "crc": "0",
+    "parent": 1836409
+  },
+  {
+    "type": "file",
+    "event": "IS_DELETED",
+    "name": "asd",
+    "inode": "1835347",
+    "time": "1487443087",
+  }
+]
