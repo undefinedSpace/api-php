@@ -59,10 +59,10 @@ RUN mkdir -p /var/www/undefinedSpace/api-php/
 #
 WORKDIR /var/www/undefinedSpace/api-php/
 ADD ./app ./app
-ADD ./backup ./backup
+ADD ./extra ./extra
 ADD ./public ./public
 ADD ./composer.json ./composer.json
-ADD ./backup/nginx.conf /etc/nginx/sites-enabled/default
+ADD ./extra/nginx.conf /etc/nginx/sites-enabled/default
 
 #
 # Composer update
@@ -72,9 +72,9 @@ RUN composer update
 #
 # Install database
 #
-RUN ./backup/install.sh
+RUN ./extra/install.sh
 
 #
 # Run services
 #
-ENTRYPOINT ./backup/run.sh
+ENTRYPOINT ./extra/run.sh

@@ -11,7 +11,7 @@ Small installation guide for several combinations of platforms.
 ### Debian + NGINX
 
 * Install packages `apt-get install nginx composer php php-fpm php-mysql`
-* Copy the [nginx.conf](backup/nginx.conf) example to your `/etc/nginx/sites-enabled/` and don't forgot to change the **root_path** and **server_name** for example to **api**
+* Copy the [nginx.conf](extra/nginx.conf) example to your `/etc/nginx/sites-enabled/` and don't forgot to change the **root_path** and **server_name** for example to **api**
 * (optional) Add the line into your `/etc/hosts` like `127.0.0.1 api`
 
 ### After your web server is ready
@@ -30,7 +30,7 @@ Small installation guide for several combinations of platforms.
 
 * Now we need to create the database structure:
 
-        mysql -u root -p < backup/versions.sql
+        mysql -u root -p < extra/versions.sql
         mysql -u root -p -e "CREATE USER 'us'@'localhost' IDENTIFIED BY 'us_password';"
         mysql -u root -p -e "GRANT ALL ON undefinedSpace.* TO 'us'@'localhost';"
 
