@@ -53,6 +53,8 @@ class Items extends Model
      * @return mixed
      */
     public function deleteInFolder($id_parent) {
-
+        return $this
+            ->where('id_parent', $id_parent)
+            ->delete();
     }
 }

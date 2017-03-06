@@ -8,7 +8,7 @@ $app->group('/api', function () {
 
     $this->group('/v1', function () {
 
-        $this->get('/sync', \Undefined\Sync::class . ':post');
+        $this->post('/sync', \Undefined\Sync::class . ':post');
         $this->put('/sync', \Undefined\Sync::class . ':put');
 
         $this->get('/changes/{id_item:[0-9]+}', function (Request $request, Response $response) {
