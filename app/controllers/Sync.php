@@ -54,24 +54,26 @@ class Sync
             );
 
             // If item is found
-            if (empty($item)) {
+            if (empty($item[0]->id)) {
 
                 // Create the query
-                foreach ($data as $ekey => $evalue) $this->_items->$ekey = $evalue;
+                foreach ($data as $ekey => $evalue)
+                    $this->_items->$ekey = $evalue;
+
                 // Make insert and get ID for next step
                 $this->_items->save();
 
                 // Insert data into accord_folder table
                 $this->_accords->id_project = $this->id_project;
-                $this->_accords->id_folder = $this->_items->id;
+                $this->_accords->id_item = (string)$this->_items[0]->id;
                 $this->_accords->save();
 
             } else {
 
                 // Make update
-                Accords::with(['id' => $item->id])->update($data);
+                Accords::with(['id' => (string)$item[0]->id])->update($data);
                 // For nex step
-                $id_item = $item[0]->id;
+                $id_item = (string)$item[0]->id;
 
             }
 
@@ -88,22 +90,28 @@ class Sync
         // Server IP from env
         $server_ip = $_SERVER['REMOTE_ADDR'];
 
+        //error_log($server_ip);
+
         // Request to server
         $request = file_get_contents('php://input');
 
         // Get server object
         $server = $this->_servers->getByIP($server_ip);
         if (empty($server)) die(json_encode(['status' => 'error']));
-        $this->id_server = $server[0]->id;
+        $this->id_server = (string)$server[0]->id;
 
         // Translate json to object of array
         $json = json_decode($request);
+
+        //error_log(print_r($json,true));
 
         // Get project from base as object
         $project = $this->_projects->getByPath($json->name);
 
         // If project not found in base
-        if (empty($project)) {
+        if (empty((string)$project[0]->id)) {
+
+            error_log('new project');
 
             $data = array(
                 "id_server" => $this->id_server,
@@ -112,22 +120,27 @@ class Sync
             );
 
             // Create the query
-            foreach ($data as $ekey => $evalue) $this->_items->$ekey = $evalue;
+            foreach ($data as $ekey => $evalue)
+                $this->_projects->$ekey = $evalue;
+
             // Make insert and get ID for next step
             $this->_projects->save();
 
             // Make insert and return the ID
-            $this->id_project = $this->_projects->id;
+            $this->id_project = (string)$this->_projects->id;
+
         } else {
+
             // Set the project ID
-            $this->id_project = $project[0]->id;
+            $this->id_project = (string)$project[0]->id;
+
         }
 
         // Next we need insert or update folder in database
         $project_folder = $this->_items->getByInode($this->id_server, $json->inode);
 
         // If project not found in base
-        if (empty($project_folder)) {
+        if (empty((string)$project_folder[0]->id)) {
 
             // The folder name (end slash bug fixed)
             $name = rtrim($json->name, '/');
@@ -141,32 +154,38 @@ class Sync
             );
 
             // Create the query
-            foreach ($data as $ekey => $evalue) $this->_items->$ekey = $evalue;
+            foreach ($data as $ekey => $evalue)
+                $this->_items->$ekey = $evalue;
+
             // Make insert and get ID for next step
             $this->_items->save();
 
             // Make insert and return the ID
-            $id_project_folder = $this->_items->id;
+            $id_project_folder = (string)$this->_items->id;
 
             $data = array(
                 "id_project" => $this->id_project,
-                "id_folder" => $id_project_folder
+                "id_item" => $id_project_folder
             );
 
             // Create the query
-            foreach ($data as $ekey => $evalue) $this->_accords->$ekey = $evalue;
+            foreach ($data as $ekey => $evalue)
+                $this->_accords->$ekey = $evalue;
+
             // Make insert and get ID for next step
             $this->_accords->save();
 
         } else {
 
             // Set the work ID
-            $id_project_folder = $project_folder[0]->id;
+            $id_project_folder = (string)$project_folder[0]->id;
 
         }
 
         // Set the poject irectory
         $this->_projects->where(array('id' => $this->id_project))->update(array('id_folder' => $id_project_folder));
+
+        error_log(print_r($json->content,true));
 
         // Viva la recursion!
         $this->viva_la_recursion($id_project_folder, $json->content);
