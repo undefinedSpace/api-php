@@ -29,12 +29,12 @@ class Sync
      * Viva la recursion!
      *
      * @param $id_parent
-     * @param array $array
+     * @param $array
      */
-    public function viva_la_recursion($id_parent, array $array)
+    public function viva_la_recursion($id_parent, $array)
     {
         // Remove all files from directory
-        $this->_items->deleteInFolder($id_parent);
+        //$this->_items->deleteInFolder($id_parent);
 
         $i = 0;
         while ($i < count($array)) {
@@ -43,42 +43,43 @@ class Sync
             // Get details about current folder
             $item = $this->_items->getByInode($this->id_server, $array[$i]->inode);
 
-            // Data for insertions
-            $data = array(
-                'id_server' => $this->id_server,
-                'id_parent' => $id_parent,
-                'inode' => $array[$i]->inode,
-                'name' => $array[$i]->name,
-                'time' => date('Y-m-d H:i:s', $array[$i]->time),
-                'deleted' => 0
-            );
-
-            // If item is found
+            // If item is not found
             if (empty($item[0]->id)) {
 
-                // Create the query
-                foreach ($data as $ekey => $evalue)
-                    $this->_items->$ekey = $evalue;
+                $this->_items->id_server = $this->id_server;
+                $this->_items->id_parent = $id_parent;
+                $this->_items->inode = $array[$i]->inode;
+                $this->_items->name = $array[$i]->name;
+                $this->_items->time = date('Y-m-d H:i:s', $array[$i]->time);
+                $this->_items->deleted = 0;
 
                 // Make insert and get ID for next step
-                $this->_items->save();
+                $id_item = $this->_items->save();
 
                 // Insert data into accord_folder table
                 $this->_accords->id_project = $this->id_project;
-                $this->_accords->id_item = (string)$this->_items[0]->id;
+                $this->_accords->id_item = (string)$id_item;
                 $this->_accords->save();
 
             } else {
 
-                // Make update
-                Accords::with(['id' => (string)$item[0]->id])->update($data);
+                // Insert data into accord_folder table
+                $this->_accords->id_project = $this->id_project;
+                $this->_accords->id_item = (string)$item[0]->id;
+                $this->_accords->save();
+
                 // For nex step
                 $id_item = (string)$item[0]->id;
-
             }
 
-            // Run next step of recursion
-            $this->viva_la_recursion($id_item, $array[$i]->content);
+            // Simple array check for the next step
+            if (is_array($array[$i]->content) && !empty($array[$i]->content)) {
+
+                error_log("INF: Array not empty");
+
+                // Run next step of recursion
+                $this->viva_la_recursion($id_item, $array[$i]->content);
+            }
 
             $i++;
         }
@@ -103,33 +104,24 @@ class Sync
         // Translate json to object of array
         $json = json_decode($request);
 
-        //error_log(print_r($json,true));
-
         // Get project from base as object
         $project = $this->_projects->getByPath($json->name);
 
         // If project not found in base
         if (empty((string)$project[0]->id)) {
 
-            error_log('new project');
+            error_log('INF: New project');
 
-            $data = array(
-                "id_server" => $this->id_server,
-                "path" => $json->name,
-                "time_start" => date('Y-m-d H:i:s')
-            );
-
-            // Create the query
-            foreach ($data as $ekey => $evalue)
-                $this->_projects->$ekey = $evalue;
-
-            // Make insert and get ID for next step
-            $this->_projects->save();
-
+            // Create new project
+            $this->_projects->id_server = $this->id_server;
+            $this->_projects->path = $json->name;
+            $this->_projects->time_start = date('Y-m-d H:i:s');
             // Make insert and return the ID
-            $this->id_project = (string)$this->_projects->id;
+            $this->id_project = $this->_projects->save();
 
         } else {
+
+            error_log('INF: Update project');
 
             // Set the project ID
             $this->id_project = (string)$project[0]->id;
@@ -146,34 +138,23 @@ class Sync
             $name = rtrim($json->name, '/');
             $name = explode('/', $name);
 
-            $data = array(
-                "id_server" => $this->id_server,
-                "inode" => $json->inode,
-                "name" => end($name),
-                "time" => date('Y-m-d H:i:s', $json->time)
-            );
-
-            // Create the query
-            foreach ($data as $ekey => $evalue)
-                $this->_items->$ekey = $evalue;
-
-            // Make insert and get ID for next step
-            $this->_items->save();
-
+            // Insert new item
+            $this->_items->id_server = $this->id_server;
+            $this->_items->inode = $json->inode;
+            $this->_items->name = end($name);
+            $this->_items->time = date('Y-m-d H:i:s', $json->time);
             // Make insert and return the ID
-            $id_project_folder = (string)$this->_items->id;
+            $id_project_folder = $this->_items->save();
 
-            $data = array(
-                "id_project" => $this->id_project,
-                "id_item" => $id_project_folder
-            );
-
-            // Create the query
-            foreach ($data as $ekey => $evalue)
-                $this->_accords->$ekey = $evalue;
-
-            // Make insert and get ID for next step
+            // Save the accords
+            $this->_accords->id_project = $this->id_project;
+            $this->_accords->id_item = $id_project_folder;
             $this->_accords->save();
+
+            // Set the project directory
+            $this->_projects->where(array('id' => $this->id_project));
+            $this->_projects->id_folder = $id_project_folder;
+            $this->_projects->save();
 
         } else {
 
@@ -182,16 +163,14 @@ class Sync
 
         }
 
-        // Set the poject irectory
-        $this->_projects->where(array('id' => $this->id_project))->update(array('id_folder' => $id_project_folder));
-
-        error_log(print_r($json->content,true));
-
         // Viva la recursion!
         $this->viva_la_recursion($id_project_folder, $json->content);
 
         // Remove inodes from deleted folders and files
-        $this->_items->find(array('inode' => null))->update(array('deleted' => 1));
+        // TODO: Make deleting from db if inode is empty
+        //$this->_items->where(array('inode' => null));
+        //$this->_items->deleted = 1;
+        //$this->_items->save();
     }
 
     public function put(Request $request, Response $response)

@@ -22,15 +22,15 @@ class Projects extends Model
     }
 
     /**
-     * Get server by IP
+     * Get server by path
      *
-     * @param string $ip
+     * @param string $path
      * @return mixed
      */
-    public function getByPath($ip)
+    public function getByPath($path)
     {
         return $this
-            ->where('path', $ip)
+            ->where('path', $path)
             ->get();
     }
 
