@@ -38,38 +38,67 @@ class Sync
 
         $i = 0;
         while ($i < count($array)) {
-            //$array[$i]->type
+            // Clean the item
+            $id_item = null;
 
             // Get details about current folder
             $item = $this->_items->getByInode($this->id_server, $array[$i]->inode);
 
+            error_log("INF: id_item " . (string)$item[0]->id);
+
             // If item is not found
-            if (empty($item[0]->id)) {
+            if (empty((string)$item[0]->id)) {
 
-                $this->_items->id_server = $this->id_server;
-                $this->_items->id_parent = $id_parent;
-                $this->_items->inode = $array[$i]->inode;
-                $this->_items->name = $array[$i]->name;
-                $this->_items->time = date('Y-m-d H:i:s', $array[$i]->time);
-                $this->_items->deleted = 0;
+                // Insert new item
+                $items = new Items();
+                $items->id_server = $this->id_server;
+                $items->id_parent = $id_parent;
+                $items->id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
+                $items->inode = $array[$i]->inode;
+                $items->name = $array[$i]->name;
+                $items->time = date('Y-m-d H:i:s', $array[$i]->time);
+                $items->deleted = 0;
+                $id_item = $items->save();
 
-                // Make insert and get ID for next step
-                $id_item = $this->_items->save();
+                error_log("INF: New accord for item " . $id_item);
 
                 // Insert data into accord_folder table
-                $this->_accords->id_project = $this->id_project;
-                $this->_accords->id_item = (string)$id_item;
-                $this->_accords->save();
+                $accords = new Accords();
+                $accords->id_project = $this->id_project;
+                $accords->id_item = (string)$id_item;
+                $accords->save();
 
             } else {
 
-                // Insert data into accord_folder table
-                $this->_accords->id_project = $this->id_project;
-                $this->_accords->id_item = (string)$item[0]->id;
-                $this->_accords->save();
-
                 // For nex step
                 $id_item = (string)$item[0]->id;
+
+                error_log("INF: Update accord for item " . $id_item);
+
+                // Get id of type
+                $id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
+
+                $data = [
+                    'id_server' => $this->id_server,
+                    'id_parent' => $id_parent,
+                    'id_type' => $id_type,
+                    'inode' => $array[$i]->inode,
+                    'name' => $array[$i]->name,
+                    'time' => date('Y-m-d H:i:s', $array[$i]->time),
+                    'deleted' => 0
+                ];
+
+                //error_log(print_r($data, true));
+
+                // Update existing item
+                $items = new Items();
+                $items->where('id', $id_item);
+                $items->update($data);
+
+                // Update data into accord_folder table
+                $accords = new Accords();
+                $accords->where('id_item', $id_item);
+                $accords->update(['id_project' => $this->id_project, 'id_item' => $id_item]);
             }
 
             // Simple array check for the next step
@@ -113,15 +142,15 @@ class Sync
             error_log('INF: New project');
 
             // Create new project
-            $this->_projects->id_server = $this->id_server;
-            $this->_projects->path = $json->name;
-            $this->_projects->time_start = date('Y-m-d H:i:s');
-            // Make insert and return the ID
-            $this->id_project = $this->_projects->save();
+            $projects = new Projects();
+            $projects->id_server = $this->id_server;
+            $projects->path = $json->name;
+            $projects->time_start = date('Y-m-d H:i:s');
+            $this->id_project = $projects->save();
 
         } else {
 
-            error_log('INF: Update project');
+            error_log('INF: Update project ' . (string)$project[0]->id);
 
             // Set the project ID
             $this->id_project = (string)$project[0]->id;
@@ -139,22 +168,25 @@ class Sync
             $name = explode('/', $name);
 
             // Insert new item
-            $this->_items->id_server = $this->id_server;
-            $this->_items->inode = $json->inode;
-            $this->_items->name = end($name);
-            $this->_items->time = date('Y-m-d H:i:s', $json->time);
-            // Make insert and return the ID
-            $id_project_folder = $this->_items->save();
+            $items = new Items();
+            $items->id_server = $this->id_server;
+            $items->id_type = 0;
+            $items->inode = $json->inode;
+            $items->name = end($name);
+            $items->time = date('Y-m-d H:i:s', $json->time);
+            $items->deleted = 0;
+            $id_project_folder = $items->save();
 
-            // Save the accords
-            $this->_accords->id_project = $this->id_project;
-            $this->_accords->id_item = $id_project_folder;
-            $this->_accords->save();
+            // Insert data into accords table
+            $accords = new Accords();
+            $accords->id_project = $this->id_project;
+            $accords->id_item = (string)$id_project_folder;
+            $accords->save();
 
             // Set the project directory
-            $this->_projects->where(array('id' => $this->id_project));
-            $this->_projects->id_folder = $id_project_folder;
-            $this->_projects->save();
+            $projects = new Projects();
+            $projects->where('id', $this->id_project);
+            $projects->update(['id_item' => (string)$id_project_folder]);
 
         } else {
 
@@ -169,8 +201,8 @@ class Sync
         // Remove inodes from deleted folders and files
         // TODO: Make deleting from db if inode is empty
         //$this->_items->where(array('inode' => null));
-        //$this->_items->deleted = 1;
-        //$this->_items->save();
+        //$items->deleted = 1;
+        //$items->save();
     }
 
     public function put(Request $request, Response $response)

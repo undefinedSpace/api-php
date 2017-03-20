@@ -51,7 +51,7 @@ CREATE TABLE items (
 DROP TABLE IF EXISTS projects;
 CREATE TABLE projects (
   id         INT       NOT NULL AUTO_INCREMENT,
-  id_folder  INT, /* ID of current folder */
+  id_item    INT, /* ID of current folder */
   id_server  INT       NOT NULL,
   path       TEXT      NOT NULL, /* Full path to project folder */
   time_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
