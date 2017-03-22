@@ -43,7 +43,7 @@ CREATE TABLE items (
   name      TEXT      NOT NULL,
   id_parent BIGINT    NOT NULL, /* ID of parent folder */
   time      TIMESTAMP NOT NULL, /* Time of last update in timestamp */
-  hash      BIGINT    NOT NULL, /* Some hash, CRC for example */
+  hash      BIGINT, /* Some hash, CRC for example */
   deleted   BOOL      NOT NULL DEFAULT FALSE,
   PRIMARY KEY (id)
 );

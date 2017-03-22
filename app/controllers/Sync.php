@@ -34,77 +34,69 @@ class Sync
     public function viva_la_recursion($id_parent, $array)
     {
         // Remove all files from directory
-        //$this->_items->deleteInFolder($id_parent);
+        Items::where('id_parent', $id_parent)
+            ->update([
+                'deleted' => 1
+            ]);
 
         $i = 0;
         while ($i < count($array)) {
-            // Clean the item
-            $id_item = null;
-
             // Get details about current folder
             $item = $this->_items->getByInode($this->id_server, $array[$i]->inode);
+            $id_item = (string)$item[0]->id;
 
-            error_log("INF: id_item " . (string)$item[0]->id);
+            // Get id of type
+            $id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
 
-            // If item is not found
-            if (empty((string)$item[0]->id)) {
+            // If is folder then hash is null
+            if ($id_type == 0) $hash = null; else $hash = $array[$i]->crc;
+
+            if (empty($id_item)) {
+                //error_log("INF: id_item is empty");
 
                 // Insert new item
                 $items = new Items();
-                $items->id_server = $this->id_server;
                 $items->id_parent = $id_parent;
-                $items->id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
-                $items->inode = $array[$i]->inode;
+                $items->id_server = $this->id_server;
+                $items->id_type = $id_type;
                 $items->name = $array[$i]->name;
-                $items->time = date('Y-m-d H:i:s', $array[$i]->time);
+                $items->inode = $array[$i]->inode;
+                $items->time = date("Y-m-d H:i:s", strtotime($array[$i]->time));
+                $items->hash = $hash;
                 $items->deleted = 0;
-                $id_item = $items->save();
+                $items->save();
 
-                error_log("INF: New accord for item " . $id_item);
+                // Last insert id
+                $id_item = (string)$items->id;
 
-                // Insert data into accord_folder table
-                $accords = new Accords();
-                $accords->id_project = $this->id_project;
-                $accords->id_item = (string)$id_item;
-                $accords->save();
+                // Set the accord project
+                $items = new Accords();
+                $items->id_item = $id_item;
+                $items->id_project = $this->id_project;
+                $items->save();
 
             } else {
+                //error_log("INF: id_item is " . $id_item);
 
-                // For nex step
-                $id_item = (string)$item[0]->id;
-
-                error_log("INF: Update accord for item " . $id_item);
-
-                // Get id of type
-                $id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
-
-                $data = [
-                    'id_server' => $this->id_server,
-                    'id_parent' => $id_parent,
-                    'id_type' => $id_type,
-                    'inode' => $array[$i]->inode,
-                    'name' => $array[$i]->name,
-                    'time' => date('Y-m-d H:i:s', $array[$i]->time),
-                    'deleted' => 0
-                ];
-
-                //error_log(print_r($data, true));
-
-                // Update existing item
-                $items = new Items();
-                $items->where('id', $id_item);
-                $items->update($data);
-
-                // Update data into accord_folder table
-                $accords = new Accords();
-                $accords->where('id_item', $id_item);
-                $accords->update(['id_project' => $this->id_project, 'id_item' => $id_item]);
+                // Update items details by id
+                Items::where('id', $id_item)
+                    ->update([
+                        'id_parent' => $id_parent,
+                        'id_server' => $this->id_server,
+                        'id_type' => $id_type,
+                        'name' => $array[$i]->name,
+                        'inode' => $array[$i]->inode,
+                        'time' => date("Y-m-d H:i:s", strtotime($array[$i]->time)),
+                        'hash' => $hash,
+                        'deleted' => 0,
+                    ]);
             }
 
-            // Simple array check for the next step
-            if (is_array($array[$i]->content) && !empty($array[$i]->content)) {
+            // If id_type is folder
+            if ($id_type == '0' && !empty($id_item)) {
 
-                error_log("INF: Array not empty");
+                error_log("INF: It's a folder");
+                error_log("INF: id_parent is " . $id_item);
 
                 // Run next step of recursion
                 $this->viva_la_recursion($id_item, $array[$i]->content);
@@ -146,7 +138,12 @@ class Sync
             $projects->id_server = $this->id_server;
             $projects->path = $json->name;
             $projects->time_start = date('Y-m-d H:i:s');
-            $this->id_project = $projects->save();
+            $projects->save();
+
+            // Get the project id
+            $this->id_project = (string)$projects->id;
+
+            error_log('INF: New project ID ' . $this->id_project);
 
         } else {
 
@@ -159,9 +156,10 @@ class Sync
 
         // Next we need insert or update folder in database
         $project_folder = $this->_items->getByInode($this->id_server, $json->inode);
+        $id_project_folder = (string)$project_folder[0]->id;
 
         // If project not found in base
-        if (empty((string)$project_folder[0]->id)) {
+        if (empty($id_project_folder)) {
 
             // The folder name (end slash bug fixed)
             $name = rtrim($json->name, '/');
@@ -171,27 +169,27 @@ class Sync
             $items = new Items();
             $items->id_server = $this->id_server;
             $items->id_type = 0;
+            $items->hash = null;
             $items->inode = $json->inode;
             $items->name = end($name);
             $items->time = date('Y-m-d H:i:s', $json->time);
             $items->deleted = 0;
-            $id_project_folder = $items->save();
+            $items->save();
+
+            // Get the project folder
+            $id_project_folder = (string)$items->id;
 
             // Insert data into accords table
             $accords = new Accords();
             $accords->id_project = $this->id_project;
-            $accords->id_item = (string)$id_project_folder;
+            $accords->id_item = $id_project_folder;
             $accords->save();
 
             // Set the project directory
-            $projects = new Projects();
-            $projects->where('id', $this->id_project);
-            $projects->update(['id_item' => (string)$id_project_folder]);
-
-        } else {
-
-            // Set the work ID
-            $id_project_folder = (string)$project_folder[0]->id;
+            Projects::where('id', $this->id_project)
+                ->update([
+                    'id_item' => $id_project_folder
+                ]);
 
         }
 

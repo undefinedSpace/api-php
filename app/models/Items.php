@@ -32,7 +32,6 @@ class Items extends Model
     {
         return $this
             ->where('id_server', $id_server)
-            ->where('id_type', 0)
             ->where('inode', $inode)
             ->get();
     }
