@@ -112,8 +112,6 @@ class Sync
         // Server IP from env
         $server_ip = $_SERVER['REMOTE_ADDR'];
 
-        //error_log($server_ip);
-
         // Request to server
         $request = file_get_contents('php://input');
 
@@ -197,10 +195,7 @@ class Sync
         $this->viva_la_recursion($id_project_folder, $json->content);
 
         // Remove inodes from deleted folders and files
-        // TODO: Make deleting from db if inode is empty
-        //$this->_items->where(array('inode' => null));
-        //$items->deleted = 1;
-        //$items->save();
+        Items::where('deleted', 1)->update(['inode' => null]);
     }
 
     public function put(Request $request, Response $response)
@@ -221,6 +216,7 @@ class Sync
 
         // Get all events from database
         $events = $this->_events->getAll();
+
         // Now we need two array for preg_replace
         $e = array();
         foreach ($events as $event) {
@@ -241,92 +237,52 @@ class Sync
             // Clean the description
             $desc = null;
 
+            // Get id of type
+            $id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
+
             // Replace the event name to ID
             $data[$i]->event = preg_replace($e['desc'], $e['ids'], $json[$i]->event);
+
             switch ($data[$i]->event) {
                 //[0] => IS_EMPTY
                 //[1] => INPUT_IS_EMPTY
                 //[2] => OUTPUT_IS_EMPTY
                 //[3] => IS_CREATED
                 case '3':
-                    // Get the folder ID
-                    $parent = $this->_items->getByInode($this->id_server, $data[$i]->parent);
-                    // Data for insertion
-                    $new_file = array(
-                        'deleted' => 0,
-                        'name' => $data[$i]->name,
-                        'inode' => $data[$i]->inode,
-                        'id_parent' => $parent->id,
-                        'time' => date("Y-m-d H:i:s", $data[$i]->time),
-                        'id_server' => $this->id_server,
-                    );
-
-                    // insert new folder into folders
-                    $id_folder = $this->_items->insert($new_file);
-
                     // Message about new file
-                    $desc = "{'parent': '" . $data[$i]->parent . "'}";
+                    $desc = "{'inode': '" . $data[$i]->parent . "', 'name': '" . $data[$i]->name . "', 'hash': '" . $data[$i]->crc . "', 'time': '" . $data[$i]->time . "'}";
                     break;
                 //[4] => IS_DELETED
                 case '4':
-                    // Get the folder ID
-                    $folder = $this->_items->getByInode($this->id_server, $data[$i]->inode);
-                    // Remove the folder and make inode null
-                    $this->_items->update(array('deleted' => 1, 'inode' => null), array('id' => $folder->id));
-
                     // Message about new file
                     $desc = "{'time': '" . $data[$i]->time . "'}";
                     break;
                 //[5] => NEW_NAME
                 case '5':
-                    // Action details
-                    $new_name = array('name' => $data[$i]->name);
-
-                    // Get the folder ID
-                    $folder = $this->_items->getByInode($this->id_server, $data[$i]->inode);
-                    // Remove the folder and make inode null
-                    $this->_items->update($new_name, array('id' => $folder->id));
-
                     // Description
-                    $desc = "{'old': '" . $folder->name . "', 'new': '" . $data[$i]->name . "'}";
+                    $desc = "{'name_old': '" . $folder->name . "', 'name_new': '" . $data[$i]->name . "'}";
                     break;
                 //[6] => NEW_TIME
                 case '6':
-                    // Action details
-                    $new_time = array('time' => $data[$i]->time);
-
-                    // Get the folder ID
-                    $folder = $this->_items->getByInode($this->id_server, $data[$i]->inode);
-                    // Remove the folder and make inode null
-                    $this->_items->update($new_time, array('id' => $folder->id));
-
                     // Description
                     $desc = "{'time': '" . $data[$i]->name . "'}";
                     break;
                 //[7] => NEW_HASH
                 case '7':
-                    // Action details
-                    $new_hash = array('time' => $data[$i]->crc);
-
-                    // Get the folder ID
-                    $folder = $this->_items->getByInode($this->id_server, $data[$i]->inode);
-                    // Remove the folder and make inode null
-                    $this->_items->update($new_hash, array('id' => $folder->id));
-
                     // Description
                     $desc = "{'hash': '" . $data[$i]->crc . "'}";
                     break;
             }
 
             // Small check if files ids is not empty
-            if (!empty($id_file) || !empty($id_folder)) {
+            if (!empty($id_item)) {
 
                 // Array for insertion
-                $insert = array(
+                $insert = [
                     'id_event' => $data[$i]->event,
                     'time' => date('Y-m-d H:i:s', $data[$i]->time),
                     'description' => $desc
-                );
+                ];
 
                 // Yet another file or folder selector
                 switch ($data[$i]->type) {
