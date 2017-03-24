@@ -238,39 +238,72 @@ class Sync
             $desc = null;
 
             // Get id of type
-            $id_type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $array[$i]->type);
+            $json[$i]->type = preg_replace(['/file/iu', '/folder/iu'], ['1', '0'], $json[$i]->type);
 
             // Replace the event name to ID
-            $data[$i]->event = preg_replace($e['desc'], $e['ids'], $json[$i]->event);
+            $json[$i]->event = preg_replace($e['desc'], $e['ids'], $json[$i]->event);
 
-            switch ($data[$i]->event) {
+            error_log(print_r($json, true));
+
+            switch ($json[$i]->event) {
                 //[0] => IS_EMPTY
                 //[1] => INPUT_IS_EMPTY
                 //[2] => OUTPUT_IS_EMPTY
                 //[3] => IS_CREATED
                 case '3':
+
+                    $id_parent = $this->_items
+                        ->where('inode', $json[$i]->parent)
+                        ->where('id_type', 0)
+                        ->get();
+
+                    // Insert new item
+                    $items = new Items();
+                    $items->id_server = $this->id_server;
+                    $items->id_parent = (string)$id_parent[0]->id;
+                    $items->id_type = $json[$i]->type;
+                    $items->hash = $json[$i]->crc;
+                    $items->inode = $json[$i]->inode;
+                    $items->name = $json[$i]->name;
+                    $items->time = date('Y-m-d H:i:s', $json[$i]->time);
+                    $items->deleted = 0;
+                    $items->save();
+
+                    $id_item = (string)$items->id;
+
                     // Message about new file
-                    $desc = "{'inode': '" . $data[$i]->parent . "', 'name': '" . $data[$i]->name . "', 'hash': '" . $data[$i]->crc . "', 'time': '" . $data[$i]->time . "'}";
+                    $desc = "{'inode': '" . $json[$i]->parent . "', 'name': '" . $json[$i]->name . "', 'hash': '" . $json[$i]->crc . "', 'time': '" . $json[$i]->time . "'}";
                     break;
                 //[4] => IS_DELETED
                 case '4':
+
+//                    $id_parent = $this->_items
+//                        ->where('inode', $json[$i]->parent)
+//                        ->where('id_type', 0)
+//                        ->get();
+
+                    // Set the project directory
+                    Items::where('inode', $json[$i]->inode)
+                        //->where('id_parent', (string)$id_parent[0]->id)
+                        ->update(['deleted' => 1, 'inode' => null]);
+
                     // Message about new file
-                    $desc = "{'time': '" . $data[$i]->time . "'}";
+                    $desc = "{'time': '" . $json[$i]->time . "'}";
                     break;
                 //[5] => NEW_NAME
                 case '5':
                     // Description
-                    $desc = "{'name_old': '" . $folder->name . "', 'name_new': '" . $data[$i]->name . "'}";
+                    $desc = "{'name_old': '" . $folder->name . "', 'name_new': '" . $json[$i]->name . "'}";
                     break;
                 //[6] => NEW_TIME
                 case '6':
                     // Description
-                    $desc = "{'time': '" . $data[$i]->name . "'}";
+                    $desc = "{'time': '" . $json[$i]->name . "'}";
                     break;
                 //[7] => NEW_HASH
                 case '7':
                     // Description
-                    $desc = "{'hash': '" . $data[$i]->crc . "'}";
+                    $desc = "{'hash': '" . $json[$i]->crc . "'}";
                     break;
             }
 
@@ -279,13 +312,13 @@ class Sync
 
                 // Array for insertion
                 $insert = [
-                    'id_event' => $data[$i]->event,
-                    'time' => date('Y-m-d H:i:s', $data[$i]->time),
+                    'id_event' => $json[$i]->event,
+                    'time' => date('Y-m-d H:i:s', $json[$i]->time),
                     'description' => $desc
                 ];
 
                 // Yet another file or folder selector
-                switch ($data[$i]->type) {
+                switch ($json[$i]->type) {
                     case 'folder':
                         $insert['id_type'] = '0';
                         break;
