@@ -129,12 +129,10 @@ class Sync
         // If project not found in base
         if (empty((string)$project[0]->id)) {
 
-            error_log('INF: New project');
-
             // Create new project
             $projects = new Projects();
             $projects->id_server = $this->id_server;
-            $projects->path = $json->name;
+            $projects->path = $string = rtrim($json->name, '/');
             $projects->time_start = date('Y-m-d H:i:s');
             $projects->save();
 
@@ -166,6 +164,7 @@ class Sync
             // Insert new item
             $items = new Items();
             $items->id_server = $this->id_server;
+            $items->id_parent = null;
             $items->id_type = 0;
             $items->hash = null;
             $items->inode = $json->inode;
@@ -177,18 +176,20 @@ class Sync
             // Get the project folder
             $id_project_folder = (string)$items->id;
 
+            // Set the project directory
+            Projects::where('id', $this->id_project)->update(['id_item' => $id_project_folder]);
+        }
+
+        // Search project folder in accords
+        $project_accords = $this->_accords->getByItemProject($id_project_folder, $this->id_project);
+
+        // If line is not found then make insert
+        if (empty((string)$project_accords[0]->id_item)) {
             // Insert data into accords table
             $accords = new Accords();
-            $accords->id_project = $this->id_project;
             $accords->id_item = $id_project_folder;
+            $accords->id_project = $this->id_project;
             $accords->save();
-
-            // Set the project directory
-            Projects::where('id', $this->id_project)
-                ->update([
-                    'id_item' => $id_project_folder
-                ]);
-
         }
 
         // Viva la recursion!

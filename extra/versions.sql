@@ -39,9 +39,9 @@ CREATE TABLE items (
   id        BIGINT    NOT NULL AUTO_INCREMENT,
   id_server INT       NOT NULL,
   id_type   TINYINT   NOT NULL, /* 0 - folder, 1 - file */
-  inode     BIGINT, /* inode should be null if folder was deleted*/
+  id_parent BIGINT, /* ID of parent folder */
+  inode     BIGINT, /* inode should be null if item was deleted */
   name      TEXT      NOT NULL,
-  id_parent BIGINT    NOT NULL, /* ID of parent folder */
   time      TIMESTAMP NOT NULL, /* Time of last update in timestamp */
   hash      BIGINT, /* Some hash, CRC for example */
   deleted   BOOL      NOT NULL DEFAULT FALSE,

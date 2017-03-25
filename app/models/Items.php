@@ -33,7 +33,6 @@ class Items extends Model
         return $this
             ->where('id_server', $id_server)
             ->where('inode', $inode)
-            ->where('deleted', 0)
             ->get();
     }
 

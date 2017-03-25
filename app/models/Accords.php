@@ -26,4 +26,20 @@ class Accords extends Model
         return $return->get();
     }
 
+    /**
+     * Select all data where project and item is matched
+     *
+     * @param int $id_item
+     * @param int $id_project
+     * @return object
+     */
+    public function getByItemProject($id_item, $id_project)
+    {
+        $return = $this
+            ->where('id_item', $id_item)
+            ->where('id_project', $id_project)
+            ->get();
+
+        return $return;
+    }
 }
