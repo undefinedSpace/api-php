@@ -35,9 +35,7 @@ class Sync
     {
         // Remove all files from directory
         Items::where('id_parent', $id_parent)
-            ->update([
-                'deleted' => 1
-            ]);
+            ->update(['deleted' => 1]);
 
         $i = 0;
         while ($i < count($array)) {
@@ -244,8 +242,7 @@ class Sync
             // Replace the event name to ID
             $json[$i]->event = preg_replace($e['desc'], $e['ids'], $json[$i]->event);
 
-            error_log(print_r($json, true));
-
+            // Choose the event by ID
             switch ($json[$i]->event) {
                 //[0] => IS_EMPTY
                 //[1] => INPUT_IS_EMPTY
@@ -256,6 +253,7 @@ class Sync
                     $id_parent = $this->_items
                         ->where('inode', $json[$i]->parent)
                         ->where('id_type', 0)
+                        ->where('id_server', $this->id_server)
                         ->get();
 
                     // Insert new item
@@ -278,6 +276,22 @@ class Sync
                 //[4] => IS_DELETED
                 case '4':
 
+                    // Get details about current item
+                    $item = $this->_items
+                        ->where('inode', $json[$i]->inode)
+                        ->where('id_server', $this->id_server)
+                        ->get();
+
+                    // Set the item
+                    $id_item = (string)$item[0]->id;
+
+                    // If some item was renamed and this item like current
+                    if ($this->renamed_item == $item[0]->id) {
+                        // Unset
+                        unset($this->renamed_item);
+                        continue;
+                    }
+
 //                    $id_parent = $this->_items
 //                        ->where('inode', $json[$i]->parent)
 //                        ->where('id_type', 0)
@@ -286,6 +300,7 @@ class Sync
                     // Set the project directory
                     Items::where('inode', $json[$i]->inode)
                         //->where('id_parent', (string)$id_parent[0]->id)
+                        ->where('id_server', $this->id_server)
                         ->update(['deleted' => 1, 'inode' => null]);
 
                     // Message about new file
@@ -293,8 +308,26 @@ class Sync
                     break;
                 //[5] => NEW_NAME
                 case '5':
+
+                    // Get details about current item
+                    $item = $this->_items
+                        ->where('inode', $json[$i]->inode)
+                        ->where('id_server', $this->id_server)
+                        ->get();
+
+                    // Set the item
+                    $id_item = (string)$item[0]->id;
+
+                    // Set the project directory
+                    Items::where('id', $id_item)
+                        ->where('id_server', $this->id_server)
+                        ->update(['name' =>  $json[$i]->name]);
+
+                    // Set the id if renamed item
+                    $this->renamed_item = $id_item;
+
                     // Description
-                    $desc = "{'name_old': '" . $folder->name . "', 'name_new': '" . $json[$i]->name . "'}";
+                    $desc = "{'name_old': '" . $item[0]->name . "', 'name_new': '" . $json[$i]->name . "'}";
                     break;
                 //[6] => NEW_TIME
                 case '6':
@@ -303,6 +336,13 @@ class Sync
                     break;
                 //[7] => NEW_HASH
                 case '7':
+
+                    // Get details about current item
+                    $item = $this->_items
+                        ->where('inode', $json[$i]->inode)
+                        ->where('id_server', $this->id_server)
+                        ->get();
+
                     // Description
                     $desc = "{'hash': '" . $json[$i]->crc . "'}";
                     break;
@@ -310,26 +350,13 @@ class Sync
 
             // Small check if files ids is not empty
             if (!empty($id_item)) {
-
-                // Array for insertion
-                $insert = [
-                    'id_event' => $json[$i]->event,
-                    'time' => date('Y-m-d H:i:s', $json[$i]->time),
-                    'description' => $desc
-                ];
-
-                // Yet another file or folder selector
-                switch ($json[$i]->type) {
-                    case 'folder':
-                        $insert['id_type'] = '0';
-                        break;
-                    case 'file':
-                        $insert['id_type'] = '1';
-                        break;
-                }
-
-                // Insert new event about file
-                $this->_changes->insert($insert);
+                // Insert new item
+                $changes = new Changes();
+                $changes->id_item = $id_item;
+                $changes->id_event = $json[$i]->event;
+                $changes->description = $desc;
+                $changes->time = date('Y-m-d H:i:s', $json[$i]->time);
+                $changes->save();
             }
 
             $i++;
