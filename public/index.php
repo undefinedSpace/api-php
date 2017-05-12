@@ -1,11 +1,15 @@
 <?php
+// Composer autoload
 include __DIR__ . '/../vendor/autoload.php';
-include __DIR__ . '/../app/bootstrap.php';
-include __DIR__ . '/../app/core.php';
 
-// All available routes
-//$routes = $app->getContainer()->get('router')->getRoutes();
-//print_r($router);
-//die();
+// Database support
+include __DIR__ . '/../app/database.php';
 
+// Enable routes
+include __DIR__ . '/../app/routes.php';
+
+// Project root
+define('APPPATH', __DIR__ . '/../app/');
+
+$app = new \Slim\App();
 $app->run();

@@ -16,12 +16,18 @@
       "role": "Developer"
     }
   ],
+  "autoload": {
+    "psr-4": {
+      "Undefined\\": "app/"
+    }
+  },
   "description": "Monitoring (aka Git) of the file system.",
   "license": "MIT",
   "minimum-stability": "stable",
   "name": "undefinedSpace/api-php",
   "require": {
     "slim/slim": "^3.0",
+    "drmvc/config": "^1.0",
     "illuminate/database": "*"
   }
 }
