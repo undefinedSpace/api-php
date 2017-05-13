@@ -27,7 +27,10 @@
   "name": "undefinedSpace/api-php",
   "require": {
     "slim/slim": "^3.0",
+    "drmvc/helpers": "^1.0",
     "drmvc/config": "^1.0",
-    "illuminate/database": "*"
+    "illuminate/database": "*",
+    "monolog/monolog": "^1.13",
+    "robmorgan/phinx": "^0.8.0"
   }
 }
