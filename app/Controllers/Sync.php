@@ -17,10 +17,10 @@ class Sync
 
     public function __construct()
     {
-        $this->_items = new Model_Changes();
-        $this->_accords = new Model_Events();
-        $this->_events = new Model_Items();
-        $this->_changes = new Model_Accords();
+        $this->_items = new Model_Items();
+        $this->_accords = new Model_Accords();
+        $this->_events = new Model_Events();
+        $this->_changes = new Model_Changes();
         $this->_projects = new Model_Projects();
         $this->_servers = new Model_Servers();
     }
@@ -34,7 +34,7 @@ class Sync
     public function viva_la_recursion($id_parent, $array)
     {
         // Remove all files from directory
-        Items::where('id_parent', $id_parent)
+        Model_Items::where('id_parent', $id_parent)
             ->update(['deleted' => 1]);
 
         $i = 0;
@@ -53,7 +53,7 @@ class Sync
                 //error_log("INF: id_item is empty");
 
                 // Insert new item
-                $items = new Items();
+                $items = new Model_Items();
                 $items->id_parent = $id_parent;
                 $items->id_server = $this->id_server;
                 $items->id_type = $id_type;
@@ -68,7 +68,7 @@ class Sync
                 $id_item = (string)$items->id;
 
                 // Set the accord project
-                $items = new Accords();
+                $items = new Model_Accords();
                 $items->id_item = $id_item;
                 $items->id_project = $this->id_project;
                 $items->save();
@@ -77,7 +77,7 @@ class Sync
                 //error_log("INF: id_item is " . $id_item);
 
                 // Update items details by id
-                Items::where('id', $id_item)
+                Model_Items::where('id', $id_item)
                     ->update([
                         'id_parent' => $id_parent,
                         'id_server' => $this->id_server,
@@ -128,7 +128,7 @@ class Sync
         if (empty((string)$project[0]->id)) {
 
             // Create new project
-            $projects = new Projects();
+            $projects = new Model_Projects();
             $projects->id_server = $this->id_server;
             $projects->path = $string = rtrim($json->name, '/');
             $projects->time_start = date('Y-m-d H:i:s');
@@ -160,7 +160,7 @@ class Sync
             $name = explode('/', $name);
 
             // Insert new item
-            $items = new Items();
+            $items = new Model_Items();
             $items->id_server = $this->id_server;
             $items->id_parent = null;
             $items->id_type = 0;
@@ -175,7 +175,7 @@ class Sync
             $id_project_folder = (string)$items->id;
 
             // Set the project directory
-            Projects::where('id', $this->id_project)->update(['id_item' => $id_project_folder]);
+            Model_Projects::where('id', $this->id_project)->update(['id_item' => $id_project_folder]);
         }
 
         // Search project folder in accords
@@ -184,7 +184,7 @@ class Sync
         // If line is not found then make insert
         if (empty((string)$project_accords[0]->id_item)) {
             // Insert data into accords table
-            $accords = new Accords();
+            $accords = new Model_Accords();
             $accords->id_item = $id_project_folder;
             $accords->id_project = $this->id_project;
             $accords->save();
@@ -194,7 +194,7 @@ class Sync
         $this->viva_la_recursion($id_project_folder, $json->content);
 
         // Remove inodes from deleted folders and files
-        Items::where('deleted', 1)->update(['inode' => null]);
+        Model_Items::where('deleted', 1)->update(['inode' => null]);
     }
 
     public function put(Request $request, Response $response)
@@ -248,7 +248,7 @@ class Sync
                 //[1] => INPUT_IS_EMPTY
                 //[2] => OUTPUT_IS_EMPTY
                 //[3] => IS_CREATED
-                case '3':
+                case 3:
 
                     $id_parent = $this->_items
                         ->where('inode', $json[$i]->parent)
@@ -257,7 +257,7 @@ class Sync
                         ->get();
 
                     // Insert new item
-                    $items = new Items();
+                    $items = new Model_Items();
                     $items->id_server = $this->id_server;
                     $items->id_parent = (string)$id_parent[0]->id;
                     $items->id_type = $json[$i]->type;
@@ -270,11 +270,17 @@ class Sync
 
                     $id_item = (string)$items->id;
 
+                    // Set the accord project
+                    $accords = new Model_Accords();
+                    $accords->id_item = $id_item;
+                    $accords->id_project = $this->id_project;
+                    $accords->save();
+
                     // Message about new file
                     $desc = "{'inode': '" . $json[$i]->parent . "', 'name': '" . $json[$i]->name . "', 'hash': '" . $json[$i]->crc . "', 'time': '" . $json[$i]->time . "'}";
                     break;
                 //[4] => IS_DELETED
-                case '4':
+                case 4:
 
                     // Get details about current item
                     $item = $this->_items
@@ -285,21 +291,15 @@ class Sync
                     // Set the item
                     $id_item = (string)$item[0]->id;
 
-                    // If some item was renamed and this item like current
-                    if ($this->renamed_item == $item[0]->id) {
-                        // Unset
-                        unset($this->renamed_item);
-                        continue;
-                    }
-
-//                    $id_parent = $this->_items
-//                        ->where('inode', $json[$i]->parent)
-//                        ->where('id_type', 0)
-//                        ->get();
+                    // Parent ID
+                    $id_parent = $this->_items
+                        ->where('inode', $json[$i]->parent)
+                        ->where('id_type', 0)
+                        ->get();
 
                     // Set the project directory
-                    Items::where('inode', $json[$i]->inode)
-                        //->where('id_parent', (string)$id_parent[0]->id)
+                    Model_Items::where('inode', $json[$i]->inode)
+                        ->where('id_parent', (string)$id_parent[0]->id)
                         ->where('id_server', $this->id_server)
                         ->update(['deleted' => 1, 'inode' => null]);
 
@@ -307,7 +307,7 @@ class Sync
                     $desc = "{'time': '" . $json[$i]->time . "'}";
                     break;
                 //[5] => NEW_NAME
-                case '5':
+                case 5:
 
                     // Get details about current item
                     $item = $this->_items
@@ -319,29 +319,49 @@ class Sync
                     $id_item = (string)$item[0]->id;
 
                     // Set the project directory
-                    Items::where('id', $id_item)
+                    Model_Items::where('id', $id_item)
                         ->where('id_server', $this->id_server)
                         ->update(['name' =>  $json[$i]->name]);
-
-                    // Set the id if renamed item
-                    $this->renamed_item = $id_item;
 
                     // Description
                     $desc = "{'name_old': '" . $item[0]->name . "', 'name_new': '" . $json[$i]->name . "'}";
                     break;
                 //[6] => NEW_TIME
-                case '6':
-                    // Description
-                    $desc = "{'time': '" . $json[$i]->name . "'}";
-                    break;
-                //[7] => NEW_HASH
-                case '7':
+                case 6:
 
                     // Get details about current item
                     $item = $this->_items
                         ->where('inode', $json[$i]->inode)
                         ->where('id_server', $this->id_server)
                         ->get();
+
+                    // Set the item
+                    $id_item = (string)$item[0]->id;
+
+                    // Set the project directory
+                    Model_Items::where('id', $id_item)
+                        ->where('id_server', $this->id_server)
+                        ->update(['time' =>  $json[$i]->time]);
+
+                    // Description
+                    $desc = "{'time': '" . $json[$i]->name . "'}";
+                    break;
+                //[7] => NEW_HASH
+                case 7:
+
+                    // Get details about current item
+                    $item = $this->_items
+                        ->where('inode', $json[$i]->inode)
+                        ->where('id_server', $this->id_server)
+                        ->get();
+
+                    // Set the item
+                    $id_item = (string)$item[0]->id;
+
+                    // Set the project directory
+                    Model_Items::where('id', $id_item)
+                        ->where('id_server', $this->id_server)
+                        ->update(['hash' =>  $json[$i]->crc]);
 
                     // Description
                     $desc = "{'hash': '" . $json[$i]->crc . "'}";
@@ -351,7 +371,7 @@ class Sync
             // Small check if files ids is not empty
             if (!empty($id_item)) {
                 // Insert new item
-                $changes = new Changes();
+                $changes = new Model_Changes();
                 $changes->id_item = $id_item;
                 $changes->id_event = $json[$i]->event;
                 $changes->description = $desc;
