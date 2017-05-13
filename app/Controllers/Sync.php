@@ -1,14 +1,14 @@
-<?php namespace Undefined;
+<?php namespace Undefined\Controllers;
 
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 
-use \Undefined\Models\Changes;
-use \Undefined\Models\Events;
-use \Undefined\Models\Items;
-use \Undefined\Models\Accords;
-use \Undefined\Models\Projects;
-use \Undefined\Models\Servers;
+use \Undefined\Models\Changes as Model_Changes;
+use \Undefined\Models\Events as Model_Events;
+use \Undefined\Models\Items as Model_Items;
+use \Undefined\Models\Accords as Model_Accords;
+use \Undefined\Models\Projects as Model_Projects;
+use \Undefined\Models\Servers as Model_Servers;
 
 class Sync
 {
@@ -17,12 +17,12 @@ class Sync
 
     public function __construct()
     {
-        $this->_items = new Items();
-        $this->_accords = new Accords();
-        $this->_events = new Events();
-        $this->_changes = new Changes();
-        $this->_projects = new Projects();
-        $this->_servers = new Servers();
+        $this->_items = new Model_Changes();
+        $this->_accords = new Model_Events();
+        $this->_events = new Model_Items();
+        $this->_changes = new Model_Accords();
+        $this->_projects = new Model_Projects();
+        $this->_servers = new Model_Servers();
     }
 
     /**

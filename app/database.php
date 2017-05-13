@@ -1,9 +1,9 @@
 <?php
-
 /**
- * Database support
+ * Database configurations
  */
 
+// Database information
 $settings = \DrMVC\Core\Config::load('database');
 
 // Bootstrap Eloquent ORM
